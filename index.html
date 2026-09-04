@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comandero Tacos Elizabeth</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
+        
+        * {
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        .scrollbar-none::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-none {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .btn-smooth {
+            transition: transform 0.15s ease-out, background-color 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+            will-change: transform;
+        }
+        .btn-smooth:active {
+            transform: scale(0.95);
+        }
+
+        .theme-transition {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+
+        .drawer-overlay {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease-out;
+        }
+        .drawer-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .drawer-panel {
+            transform: translateX(100%);
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .drawer-overlay.active .drawer-panel {
+            transform: translateX(0);
+        }
+
+        .modal-overlay {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease-out;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-box {
+            transform: scale(0.96);
+            opacity: 0;
+            transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+        }
+        .modal-overlay.active .modal-box {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .banner-slide {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.25s ease-out, padding 0.25s ease-out;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        .banner-slide.active {
+            max-height: 120px;
+            opacity: 1;
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+        }
+
+        .toast-slide {
+            transform: translateY(-10px);
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+        }
+        .toast-slide.active {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 pb-36 pt-4">
+
+    <!-- BANNER MODO EDICIÓN EN NEGRO -->
+    <div id="editing-banner" class="banner-slide bg-black text-white px-4 shadow-lg sticky top-2 z-30 rounded-full mx-3 border border-slate-800 theme-transition mb-3">
+        <div class="max-w-4xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2.5">
+            <div class="flex items-center gap-2.5">
+                <i class="fa-solid fa-pen-to-square text-xl text-white"></i>
+                <div class="flex flex-col justify-center">
+                    <span class="font-black text-[10px] uppercase tracking-wider text-slate-300 block leading-none">MODO EDICIÓN DE TICKET</span>
+                    <p class="text-xs font-bold text-white leading-none mt-1">Modificando: <span id="editing-customer-name" class="underline font-black">--</span></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <button onclick="cancelEditing()" class="btn-smooth w-1/2 sm:w-auto bg-slate-800 hover:bg-slate-700 text-white text-sm font-extrabold px-5 py-3.5 rounded-full border border-slate-700 flex items-center justify-center leading-none">
+                    Cancelar
+                </button>
+                <button onclick="finishOrder()" class="btn-smooth w-1/2 sm:w-auto bg-white hover:bg-slate-100 text-black text-sm font-black px-6 py-3.5 rounded-full flex items-center justify-center gap-1.5 shadow-sm leading-none">
+                    <i class="fa-solid fa-check text-base"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR PRINCIPAL -->
+    <main class="max-w-4xl mx-auto px-4 space-y-4">
+
+        <!-- CONFIGURACIÓN DE MESA -->
+        <section class="bg-white rounded-[2.5rem] p-5 shadow-sm border border-slate-200">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+                <div class="flex-1">
+                    <label class="block text-xs font-black text-slate-500 uppercase tracking-wider mb-1.5 pl-2 flex items-center gap-1">
+                        <i class="fa-solid fa-utensils text-slate-400"></i>
+                        <span>Mesa / Identificador</span>
+                    </label>
+                    <input type="text" id="table-name-input" placeholder="Ej: Mesa 1, Barra, Para Llevar..." 
+                           class="w-full text-lg font-black px-5 py-3.5 rounded-full border-2 border-slate-200 focus:outline-none focus:border-red-600 text-slate-800 transition-colors shadow-sm">
+                </div>
+                <div class="flex items-center justify-end shrink-0">
+                    <div id="status-chip" class="bg-red-100 text-red-800 text-xs font-black px-4 py-2.5 rounded-full flex items-center gap-2 border border-red-200 theme-transition shadow-sm">
+                        <span class="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse shrink-0"></span>
+                        <span id="status-chip-text" class="uppercase tracking-wide leading-none">NUEVO TICKET</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN DEL PEDIDO -->
+        <section class="bg-white rounded-[2.5rem] p-5 shadow-sm border border-slate-200 space-y-4">
+            
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3.5 px-1">
+                <div class="flex items-center gap-2.5">
+                    <div class="bg-red-100 text-red-700 w-9 h-9 rounded-full flex items-center justify-center font-black text-xs shrink-0 border border-red-200">
+                        <i class="fa-solid fa-receipt text-red-700"></i>
+                    </div>
+                    <div class="flex flex-col justify-center">
+                        <span class="font-black text-base text-slate-800 leading-none">Pedido</span>
+                        <span id="order-count-subtitle" class="text-[11px] text-slate-400 font-bold leading-tight mt-0.5">0 productos en total</span>
+                    </div>
+                </div>
+                <span id="order-total-badge" class="text-xs sm:text-sm font-black px-4 py-2 rounded-full bg-red-100 text-red-800 border border-red-200 flex items-center justify-center leading-none">
+                    $0.00
+                </span>
+            </div>
+
+            <!-- Lista de Lotes/Tandas Agregadas -->
+            <div id="order-items-container" class="space-y-3.5">
+                <!-- Se llena dinámicamente -->
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- MENÚ NAVEGACIÓN INFERIOR UNIFICADO -->
+    <nav id="bottom-nav" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-2xl rounded-full px-4 py-2.5 flex items-center justify-around w-[92%] max-w-sm">
+        
+        <!-- 1. Inicio -->
+        <button onclick="handleNavHome()" title="Inicio" class="btn-smooth w-14 h-14 rounded-full flex items-center justify-center text-red-800 bg-red-100 hover:bg-red-200 text-2xl border border-red-200 theme-transition">
+            <i class="fa-solid fa-house text-red-700"></i>
+        </button>
+
+        <!-- 2. Historial -->
+        <button onclick="toggleHistoryDrawer()" title="Historial" class="btn-smooth w-14 h-14 rounded-full flex items-center justify-center text-red-800 bg-red-100 hover:bg-red-200 text-2xl border border-red-200 theme-transition">
+            <i class="fa-solid fa-clock-rotate-left text-red-700"></i>
+        </button>
+
+        <!-- 3. Abrir Menú / Agregar Productos -->
+        <button id="nav-menu-btn" onclick="toggleMenuModal()" title="Abrir Menú" class="btn-smooth w-16 h-16 bg-red-100 hover:bg-red-200 text-red-800 rounded-full flex items-center justify-center text-2xl shadow-sm border border-red-200 theme-transition">
+            <i class="fa-solid fa-plus text-red-700"></i>
+        </button>
+
+        <!-- 4. Ticket -->
+        <button id="nav-cart-btn" onclick="toggleOrderDrawer()" title="Ver Ticket" class="btn-smooth relative w-14 h-14 bg-red-100 hover:bg-red-200 text-red-800 rounded-full flex items-center justify-center text-xl border border-red-200 theme-transition">
+            <i class="fa-solid fa-receipt text-red-700"></i>
+            <span id="nav-cart-count" class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-[10px] font-black shadow-sm flex items-center justify-center leading-none">0</span>
+        </button>
+    </nav>
+
+    <!-- MODAL SELECTOR DE PRODUCTOS -->
+    <div id="menu-modal" class="modal-overlay fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3">
+        <div class="modal-box bg-white rounded-[2.5rem] w-full max-w-xl h-[82vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 mb-16">
+            
+            <div id="modal-header" class="bg-red-100 border-b border-red-200 text-red-900 px-5 py-4 flex justify-between items-center shrink-0 theme-transition">
+                <div>
+                    <h3 class="font-black text-base leading-tight">Menú de Productos</h3>
+                    <p class="text-xs text-red-700 font-bold">Selecciona y confirma los elementos de esta tanda</p>
+                </div>
+            </div>
+
+            <!-- Buscador y Filtros -->
+            <div class="p-3.5 bg-slate-50 border-b border-slate-200 shrink-0 space-y-2.5">
+                <div class="relative flex items-center">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 text-slate-400 text-sm"></i>
+                    <input type="text" id="modal-search-input" onkeyup="renderModalMenu()" placeholder="Buscar tacos, mulitas, bebidas..." 
+                           class="w-full pl-11 pr-4 py-3.5 rounded-full border border-slate-200 bg-white focus:outline-none focus:border-red-600 text-xs sm:text-sm font-semibold shadow-sm">
+                </div>
+                <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-none items-center" id="modal-category-buttons">
+                    <!-- Botones dinámicos -->
+                </div>
+            </div>
+
+            <!-- Menú Desplegado -->
+            <div id="modal-menu-grid" class="flex-1 overflow-y-auto p-3.5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <!-- Se llena automáticamente -->
+            </div>
+
+            <div class="p-4 bg-slate-100 border-t border-slate-200 flex justify-between items-center shrink-0">
+                <span id="modal-summary-text" class="text-xs font-extrabold text-slate-700">0 agregados en este grupo</span>
+                <button onclick="confirmModalBatch()" class="btn-smooth bg-red-100 hover:bg-red-200 text-red-800 border border-red-200 font-black px-6 py-3.5 rounded-full text-xs sm:text-sm shadow-sm flex items-center gap-2 leading-none">
+                    <i class="fa-solid fa-check text-sm text-red-700"></i>
+                    <span>Agregar al Ticket</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DRAWER / DETALLE DEL TICKET GENERAL -->
+    <div id="order-drawer" class="drawer-overlay fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex justify-end">
+        <div class="drawer-panel bg-white w-full max-w-lg h-full flex flex-col shadow-2xl">
+            
+            <div id="drawer-header" class="bg-red-100 border-b border-red-200 text-red-900 px-5 py-4 flex justify-between items-center shadow-sm theme-transition">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-receipt text-red-700 text-xl"></i>
+                    <div>
+                        <h2 id="drawer-header-title" class="font-black text-lg leading-tight">Ticket Actual</h2>
+                        <p id="drawer-header-sub" class="text-xs text-red-700 font-bold">Resumen detallado del pedido</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="order-drawer-content" class="flex-1 overflow-y-auto p-4 space-y-3 mb-16">
+                <!-- Se llena automáticamente -->
+            </div>
+
+            <div class="p-4 border-t border-slate-200 bg-slate-50 space-y-3 mb-16">
+                <div class="flex justify-between items-center text-slate-900 text-xl font-black">
+                    <span>TOTAL:</span>
+                    <span id="drawer-total-price" class="text-red-700 font-black theme-transition">$0.00</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="clearCurrentOrder()" class="btn-smooth w-[28%] py-3.5 rounded-full border border-red-200 text-red-800 bg-red-50 hover:bg-red-100 font-black text-xs flex items-center justify-center leading-none">
+                        <i class="fa-solid fa-trash-can mr-1"></i>
+                        <span>Borrar</span>
+                    </button>
+                    <button id="finish-btn" onclick="finishOrder()" class="btn-smooth flex-1 bg-red-100 hover:bg-red-200 text-red-800 border border-red-200 font-black py-3.5 rounded-full shadow-sm text-sm theme-transition flex items-center justify-center gap-1.5 leading-none">
+                        <i class="fa-solid fa-circle-check text-red-700"></i>
+                        <span>Finalizar Ticket</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- TICKET CONFIRMACIÓN MODAL -->
+    <div id="ticket-modal" class="modal-overlay fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="modal-box bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-2xl border-2 border-slate-200">
+            <div id="ticket-header-bg" class="bg-red-100 border-b border-red-200 text-red-900 p-4 text-center relative theme-transition">
+                <div class="text-2xl mb-0.5">🌮</div>
+                <h3 class="font-black text-lg text-red-900">TACOS ELIZABETH</h3>
+                <p id="ticket-status-title" class="text-xs text-red-700 font-bold">¡Ticket Guardado!</p>
+            </div>
+
+            <div class="bg-red-50 text-red-900 px-3 py-2 text-center text-xs font-bold flex items-center justify-center gap-1.5 border-b border-red-100 leading-none">
+                <i class="fa-solid fa-camera text-red-600 text-base"></i>
+                <span>¡TOMA CAPTURA DE PANTALLA!</span>
+            </div>
+
+            <div class="p-4 space-y-3 bg-slate-50 max-h-[50vh] overflow-y-auto text-xs">
+                <div class="text-center pb-2 border-b border-slate-200">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Mesa / Referencia</span>
+                    <h4 id="ticket-customer" class="text-base font-black text-slate-800">Mesa 1</h4>
+                    <span id="ticket-date" class="text-[10px] text-slate-500 font-medium">--/--/---- --:--</span>
+                </div>
+
+                <div id="ticket-items" class="space-y-2">
+                    <!-- Se llena automáticamente -->
+                </div>
+
+                <div class="pt-2 border-t-2 border-slate-200 flex justify-between items-center text-base">
+                    <span class="font-black text-slate-800">TOTAL:</span>
+                    <span id="ticket-total" class="font-black text-lg text-red-700 theme-transition">$0.00</span>
+                </div>
+            </div>
+
+            <div class="p-3 bg-white border-t border-slate-200">
+                <button onclick="closeTicketModal()" class="btn-smooth w-full bg-red-100 hover:bg-red-200 text-red-800 border border-red-200 font-black py-3 rounded-full text-xs sm:text-sm flex items-center justify-center leading-none">
+                    Cerrar Ticket
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DRAWER HISTORIAL -->
+    <div id="history-drawer" class="drawer-overlay fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex justify-end">
+        <div class="drawer-panel bg-white w-full max-w-lg h-full flex flex-col shadow-2xl relative">
+            
+            <div class="bg-red-100 border-b border-red-200 text-red-900 px-5 py-4 flex justify-between items-center shadow-sm shrink-0">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-red-700 text-lg"></i>
+                    <div>
+                        <h2 class="font-black text-base leading-tight">Historial de Tickets</h2>
+                        <p class="text-xs text-red-700 font-bold">Registros guardados</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón de Borrar Historial ubicado arriba -->
+            <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
+                <button onclick="clearHistory()" class="btn-smooth w-full py-3 rounded-full border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 text-xs font-bold flex items-center justify-center gap-1.5 leading-none">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <span>Borrar Historial</span>
+                </button>
+            </div>
+
+            <div id="history-items-list" class="flex-1 overflow-y-auto p-4 space-y-3 pb-32">
+                <!-- Historial -->
+            </div>
+
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICACIÓN -->
+    <div id="toast" class="toast-slide fixed top-4 right-4 bg-red-100 text-red-900 text-xs font-bold px-4 py-3 rounded-full shadow-xl z-50 flex items-center gap-2 border border-red-200">
+        <i class="fa-solid fa-circle-check text-red-700 text-sm"></i>
+        <span id="toast-message">Notificación</span>
+    </div>
+
+    <script>
+        const menuData = [
+            // TACOS
+            { id: 1, category: 'tacos', name: 'Taco de Asada', price: 35, desc: 'Taco tradicional de carne asada de res' },
+            { id: 2, category: 'tacos', name: 'Taco de Adobada', price: 35, desc: 'Taco de carne de cerdo adobada al pastor' },
+            { id: 3, category: 'tacos', name: 'Taco de Suadero', price: 37, desc: 'Taco de carne de suadero doradita y suave' },
+            { id: 4, category: 'tacos', name: 'Taco de Chorizo', price: 35, desc: 'Taco de chorizo estilo taquería' },
+            { id: 5, category: 'tacos', name: 'Taco Mixto', price: 40, desc: 'Combinación de dos carnes a elección' },
+            { id: 6, category: 'tacos', name: 'Taco de Tripa', price: 50, desc: 'Tripa de res (dorada o tierna)' },
+
+            // ANTOJITOS & ESPECIALIDADES
+            { id: 7, category: 'antojitos', name: 'Mulita (Sencilla)', price: 70, desc: 'Dos tortillas con queso fundido y carne' },
+            { id: 8, category: 'antojitos', name: 'Mulita (Mixta)', price: 80, desc: 'Mulita con mezcla de carnes' },
+            { id: 9, category: 'antojitos', name: 'Quesadilla (Sencilla)', price: 120, desc: 'Quesadilla grande con carne' },
+            { id: 10, category: 'antojitos', name: 'Quesadilla (Mixta)', price: 130, desc: 'Quesadilla con combinación de carnes' },
+            { id: 11, category: 'antojitos', name: 'Torta (Sencilla)', price: 100, desc: 'Pan telera con carne, queso y verduras' },
+            { id: 12, category: 'antojitos', name: 'Torta (Mixta)', price: 110, desc: 'Torta con combinación de dos carnes' },
+            { id: 13, category: 'antojitos', name: 'Vampiro (Sencillo)', price: 70, desc: 'Tortilla tostada con queso derretido y carne' },
+            { id: 14, category: 'antojitos', name: 'Vampiro (Mixto)', price: 80, desc: 'Vampiro crujiente con carnes mixtas' },
+            { id: 15, category: 'antojitos', name: 'Súper Taco (Sencillo)', price: 110, desc: 'Taco preparado de gran tamaño' },
+            { id: 16, category: 'antojitos', name: 'Súper Taco (Mixto)', price: 120, desc: 'Súper taco con carne mixta' },
+            { id: 17, category: 'antojitos', name: 'Tostada (Sencilla)', price: 50, desc: 'Tostada crujiente con carne y verduras' },
+            { id: 18, category: 'antojitos', name: 'Tostada (Mixta)', price: 60, desc: 'Tostada crujiente con guisos combinados' },
+            { id: 19, category: 'antojitos', name: 'Huarache (Sencillo)', price: 150, desc: 'Base de maíz con carne y gratinado' },
+            { id: 20, category: 'antojitos', name: 'Huarache (Mixto)', price: 160, desc: 'Huarache grande con carnes combinadas' },
+            { id: 21, category: 'antojitos', name: 'Mula (Sencilla)', price: 150, desc: 'Mula especial grande con carne y queso' },
+            { id: 22, category: 'antojitos', name: 'Mula (Mixta)', price: 160, desc: 'Mula especial grande con carnes mixtas' },
+            { id: 23, category: 'antojitos', name: 'Quesadilla (Solo Queso)', price: 40, desc: 'Queso fundido sin carne' },
+            { id: 24, category: 'antojitos', name: 'Mega Burro (Sencillo)', price: 330, desc: 'Burro gigante para compartir' },
+            { id: 25, category: 'antojitos', name: 'Mega Burro (Mixto)', price: 350, desc: 'Burro gigante con carnes combinadas' },
+
+            // ESPECIAL DE TRIPA
+            { id: 26, category: 'tripa', name: 'Tostada de Tripa', price: 65, desc: 'Tostada crujiente cargada de tripa' },
+            { id: 27, category: 'tripa', name: 'Vampiro de Tripa', price: 85, desc: 'Tortilla tostada con queso y tripa' },
+            { id: 28, category: 'tripa', name: 'Súper Taco de Tripa', price: 130, desc: 'Súper taco con tripa dorada' },
+            { id: 29, category: 'tripa', name: 'Torta de Tripa', price: 130, desc: 'Torta suave rellena de tripa' },
+            { id: 30, category: 'tripa', name: 'Quesadilla de Tripa', price: 150, desc: 'Quesadilla grande gratinada con tripa' },
+            { id: 31, category: 'tripa', name: 'Mula de Tripa', price: 170, desc: 'Mula especial con queso y tripa' },
+
+            // KILOS Y TOSTITOS
+            { id: 32, category: 'kilos', name: 'Carne 1 Kilo (Asada/Adobada)', price: 680, desc: 'Incluye tortillas, salsas y verduras' },
+            { id: 33, category: 'kilos', name: 'Carne 1/2 Kilo', price: 360, desc: 'Incluye tortillas y complementos' },
+            { id: 34, category: 'kilos', name: 'Tostitos Preparados (Sencillos)', price: 140, desc: 'Tostitos con carne' },
+            { id: 35, category: 'kilos', name: 'Tostitos Preparados (Mixtos)', price: 150, desc: 'Tostitos con carnes combinadas' },
+
+            // BEBIDAS
+            { id: 36, category: 'bebidas', name: 'Sodas / Refrescos', price: 35, desc: 'Sodas frías 600ml / Lata' },
+            { id: 37, category: 'bebidas', name: 'Agua de Sabor (Oasis)', price: 35, desc: 'Aguas frescas' },
+            { id: 38, category: 'bebidas', name: 'Jugos', price: 35, desc: 'Jugos embotellados' }
+        ];
+
+        let orderBatches = [];
+        let modalTempCart = {}; 
+        let currentModalCategory = 'all';
+        let orderHistory = [];
+        let editingOrderId = null;
+
+        window.onload = function() {
+            renderOrderItems();
+            renderHistory();
+        };
+
+        // --- GESTIÓN DE PANELES Y NAVEGACIÓN INTELIGENTE (TOGGLE) ---
+        function closeAllOverlays() {
+            document.getElementById('menu-modal').classList.remove('active');
+            document.getElementById('order-drawer').classList.remove('active');
+            document.getElementById('history-drawer').classList.remove('active');
+        }
+
+        function handleNavHome() {
+            scrollToTop();
+            closeAllOverlays();
+        }
+
+        function toggleMenuModal() {
+            const menuModal = document.getElementById('menu-modal');
+            const isActive = menuModal.classList.contains('active');
+            closeAllOverlays();
+            if (!isActive) {
+                modalTempCart = {}; 
+                renderModalCategories();
+                renderModalMenu();
+                menuModal.classList.add('active');
+            }
+        }
+
+        function toggleOrderDrawer() {
+            const orderDrawer = document.getElementById('order-drawer');
+            const isActive = orderDrawer.classList.contains('active');
+            closeAllOverlays();
+            if (!isActive) {
+                renderDrawerContent();
+                orderDrawer.classList.add('active');
+            }
+        }
+
+        function toggleHistoryDrawer() {
+            const historyDrawer = document.getElementById('history-drawer');
+            const isActive = historyDrawer.classList.contains('active');
+            closeAllOverlays();
+            if (!isActive) {
+                renderHistory();
+                historyDrawer.classList.add('active');
+            }
+        }
+
+        function renderOrderItems() {
+            const container = document.getElementById('order-items-container');
+            let totalMesa = 0;
+            let totalItemsCount = 0;
+
+            orderBatches.forEach(b => {
+                totalMesa += b.qty * b.item.price;
+                totalItemsCount += b.qty;
+            });
+
+            const badge = document.getElementById('order-total-badge');
+            badge.innerText = `$${totalMesa}.00`;
+            if (totalMesa > 0) {
+                badge.className = `text-xs sm:text-sm font-black px-4 py-1.5 rounded-full ${editingOrderId ? 'bg-black text-white' : 'bg-red-100 text-red-800 border border-red-200'}`;
+            } else {
+                badge.className = "text-xs sm:text-sm font-black px-4 py-1.5 rounded-full bg-slate-100 text-slate-500";
+            }
+
+            document.getElementById('order-count-subtitle').innerText = `${totalItemsCount} producto${totalItemsCount === 1 ? '' : 's'} en total`;
+
+            if (orderBatches.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-slate-400 flex flex-col items-center justify-center">
+                        <i class="fa-solid fa-utensils text-2xl mb-2 opacity-30"></i>
+                        <p class="text-xs font-bold text-slate-600">No hay productos en el pedido</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Toca el botón <span class="text-red-700 font-black">+</span> en la barra inferior para agregar productos</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = orderBatches.map((batch, index) => {
+                return `
+                    <div class="bg-slate-50 rounded-[2rem] p-4.5 border border-slate-200 space-y-3.5">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2 overflow-hidden flex-1">
+                                <span class="text-[10px] font-black ${editingOrderId ? 'bg-slate-200 text-slate-800' : 'bg-red-100 text-red-800 border border-red-200'} px-2.5 py-1 rounded-full uppercase leading-none shrink-0 flex items-center justify-center">Lote ${index + 1}</span>
+                                <h5 class="font-extrabold text-sm sm:text-base text-slate-900 leading-snug truncate">${batch.item.name}</h5>
+                            </div>
+
+                            <div class="flex items-center gap-2 shrink-0">
+                                <div class="flex items-center gap-2 bg-white p-1 rounded-full border-2 border-slate-200 shadow-sm">
+                                    <button onclick="changeBatchQty(${batch.batchId}, -1)" 
+                                            class="btn-smooth w-12 h-12 bg-red-600 hover:bg-red-700 text-white font-black text-2xl rounded-full flex items-center justify-center shadow-sm select-none shrink-0 leading-none pb-0.5">
+                                        -
+                                    </button>
+                                    <span class="font-black text-lg text-center text-slate-900 select-none min-w-[28px] h-12 flex items-center justify-center leading-none">${batch.qty}</span>
+                                    <button onclick="changeBatchQty(${batch.batchId}, 1)" 
+                                            class="btn-smooth w-12 h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-2xl rounded-full flex items-center justify-center shadow-sm select-none shrink-0 leading-none pb-0.5">
+                                        +
+                                    </button>
+                                </div>
+                                <span class="font-black text-base text-slate-900 min-w-[50px] text-right shrink-0 leading-none flex items-center justify-end h-9">$${batch.qty * batch.item.price}</span>
+                            </div>
+                        </div>
+
+                        <div class="w-full">
+                            <textarea rows="2" 
+                                      placeholder="Notas para estos ${batch.qty} (${batch.item.name}). Ej: bien dorados, sin cebolla..."
+                                      onchange="updateBatchNote(${batch.batchId}, this.value)"
+                                      class="w-full text-xs font-semibold p-3.5 rounded-[1.2rem] bg-white border-2 border-slate-200 focus:outline-none ${editingOrderId ? 'focus:border-black' : 'focus:border-red-300'} text-slate-800 placeholder-slate-400 resize-y block box-border">${batch.note || ''}</textarea>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function changeBatchQty(batchId, delta) {
+            const batch = orderBatches.find(b => b.batchId === batchId);
+            if (!batch) return;
+
+            batch.qty += delta;
+            if (batch.qty <= 0) {
+                orderBatches = orderBatches.filter(b => b.batchId !== batchId);
+            }
+
+            renderOrderItems();
+            updateTotalNav();
+            renderDrawerContent();
+        }
+
+        function updateBatchNote(batchId, noteText) {
+            const batch = orderBatches.find(b => b.batchId === batchId);
+            if (batch) {
+                batch.note = noteText;
+            }
+        }
+
+        function confirmModalBatch() {
+            const keys = Object.keys(modalTempCart);
+            let countAdded = 0;
+
+            keys.forEach(menuId => {
+                const qty = modalTempCart[menuId];
+                if (qty > 0) {
+                    const menuItem = menuData.find(m => m.id === parseInt(menuId));
+                    if (menuItem) {
+                        orderBatches.push({
+                            batchId: Date.now() + Math.random(),
+                            qty: qty,
+                            item: menuItem,
+                            note: ''
+                        });
+                        countAdded += qty;
+                    }
+                }
+            });
+
+            closeAllOverlays();
+            renderOrderItems();
+            updateTotalNav();
+
+            if (countAdded > 0) {
+                showToast(`Se agregaron ${countAdded} productos al ticket`);
+            }
+        }
+
+        function renderModalCategories() {
+            const categories = [
+                { id: 'all', label: '🍽️ Todos' },
+                { id: 'tacos', label: '🌮 Tacos' },
+                { id: 'antojitos', label: '🫓 Antojitos' },
+                { id: 'tripa', label: '🔥 Tripa' },
+                { id: 'kilos', label: '⚖️ Kilos/Tostitos' },
+                { id: 'bebidas', label: '🥤 Bebidas' }
+            ];
+
+            const container = document.getElementById('modal-category-buttons');
+            container.innerHTML = categories.map(c => `
+                <button onclick="setModalCategory('${c.id}')" class="btn-smooth text-sm font-bold px-5 py-3 rounded-full whitespace-nowrap flex items-center justify-center leading-none ${currentModalCategory === c.id ? (editingOrderId ? 'bg-black text-white font-black' : 'bg-red-100 text-red-900 border border-red-300 font-black') : 'bg-white text-slate-700 border border-slate-200'}">
+                    ${c.label}
+                </button>
+            `).join('');
+        }
+
+        function setModalCategory(cat) {
+            currentModalCategory = cat;
+            renderModalCategories();
+            renderModalMenu();
+        }
+
+        function renderModalMenu() {
+            const container = document.getElementById('modal-menu-grid');
+            const searchVal = document.getElementById('modal-search-input').value.toLowerCase();
+
+            const filtered = menuData.filter(item => {
+                const matchesCat = currentModalCategory === 'all' || item.category === currentModalCategory;
+                const matchesSearch = item.name.toLowerCase().includes(searchVal) || item.desc.toLowerCase().includes(searchVal);
+                return matchesCat && matchesSearch;
+            });
+
+            let totalInTemp = 0;
+            Object.values(modalTempCart).forEach(q => totalInTemp += q);
+            document.getElementById('modal-summary-text').innerText = `${totalInTemp} en esta tanda`;
+
+            container.innerHTML = filtered.map(item => {
+                const qty = modalTempCart[item.id] || 0;
+
+                return `
+                    <div class="bg-white rounded-[2rem] p-4 border-2 ${qty > 0 ? (editingOrderId ? 'border-black bg-slate-100/80' : 'border-red-300 bg-red-50/40') : 'border-slate-200'} flex flex-col justify-between space-y-3 shadow-sm">
+                        <div>
+                            <div class="flex justify-between items-start gap-1">
+                                <h5 class="font-extrabold text-sm text-slate-900 leading-snug">${item.name}</h5>
+                                <span class="font-black text-sm px-2.5 py-0.5 rounded-lg ${editingOrderId ? 'bg-black text-white' : 'bg-red-100 text-red-800 border border-red-200'} shrink-0 flex items-center justify-center leading-none">$${item.price}</span>
+                            </div>
+                            <p class="text-xs text-slate-500 font-medium mt-1 leading-snug">${item.desc}</p>
+                        </div>
+
+                        <div class="flex items-center justify-end pt-2 border-t border-slate-100">
+                            ${qty > 0 ? `
+                                <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-full border-2 border-slate-300">
+                                    <button onclick="tempCartUpdate(${item.id}, -1)" class="btn-smooth w-12 h-12 bg-red-600 hover:bg-red-700 font-black text-2xl rounded-full text-white flex items-center justify-center shadow-sm select-none shrink-0 leading-none pb-0.5">-</button>
+                                    <span class="font-black text-lg text-center text-slate-900 select-none min-w-[28px] h-12 flex items-center justify-center leading-none">${qty}</span>
+                                    <button onclick="tempCartUpdate(${item.id}, 1)" class="btn-smooth w-12 h-12 bg-emerald-600 hover:bg-emerald-700 font-black text-2xl rounded-full text-white flex items-center justify-center shadow-sm select-none shrink-0 leading-none pb-0.5">+</button>
+                                </div>
+                            ` : `
+                                <button onclick="tempCartUpdate(${item.id}, 1)" class="btn-smooth px-6 py-4 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black flex items-center gap-1.5 shadow-sm active:scale-95 leading-none">
+                                    <i class="fa-solid fa-plus text-base"></i>
+                                    <span>Agregar</span>
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function tempCartUpdate(itemId, delta) {
+            if (!modalTempCart[itemId]) {
+                modalTempCart[itemId] = 0;
+            }
+            modalTempCart[itemId] += delta;
+            if (modalTempCart[itemId] <= 0) {
+                delete modalTempCart[itemId];
+            }
+            renderModalMenu();
+        }
+
+        function updateTotalNav() {
+            let totalNavItems = 0;
+            let totalNavPrice = 0;
+
+            orderBatches.forEach(b => {
+                totalNavItems += b.qty;
+                totalNavPrice += b.qty * b.item.price;
+            });
+
+            document.getElementById('nav-cart-count').innerText = totalNavItems;
+            document.getElementById('drawer-total-price').innerText = `$${totalNavPrice}.00`;
+        }
+
+        function renderDrawerContent() {
+            const container = document.getElementById('order-drawer-content');
+
+            if (orderBatches.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-slate-400 flex flex-col items-center justify-center">
+                        <i class="fa-solid fa-receipt text-3xl mb-2 opacity-30"></i>
+                        <p class="text-xs font-bold text-slate-600">Ticket vacío</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="space-y-3">
+                    ${orderBatches.map((b, idx) => `
+                        <div class="border-b border-slate-100 pb-2.5">
+                            <div class="flex justify-between items-start text-xs sm:text-sm">
+                                <div>
+                                    <span class="font-black text-slate-800">${b.qty}x ${b.item.name}</span>
+                                    <span class="text-[10px] text-slate-400 ml-1 font-bold">(Lote ${idx + 1})</span>
+                                    ${b.note ? `<p class="text-xs text-slate-500 italic bg-slate-100 p-1.5 rounded-lg mt-1">Nota: ${b.note}</p>` : ''}
+                                </div>
+                                <span class="font-black text-slate-900 shrink-0">$${b.qty * b.item.price}.00</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function clearCurrentOrder() {
+            if (editingOrderId) {
+                cancelEditing();
+                return;
+            }
+            orderBatches = [];
+            document.getElementById('table-name-input').value = '';
+            renderOrderItems();
+            updateTotalNav();
+            renderDrawerContent();
+            showToast("Ticket vaciado");
+        }
+
+        function finishOrder() {
+            const tableName = document.getElementById('table-name-input').value.trim() || 'Mesa Sin Nombre';
+
+            if (orderBatches.length === 0) {
+                showToast("Agrega productos antes de finalizar");
+                return;
+            }
+
+            let totalMesa = 0;
+            const itemsSummary = orderBatches.map(b => {
+                const sub = b.qty * b.item.price;
+                totalMesa += sub;
+                return { name: b.item.name, qty: b.qty, price: b.item.price, note: b.note };
+            });
+
+            const currentDate = new Date().toLocaleDateString('es-MX', { 
+                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
+            });
+
+            if (editingOrderId) {
+                const index = orderHistory.findIndex(o => o.id === editingOrderId);
+                if (index !== -1) {
+                    orderHistory[index] = {
+                        id: editingOrderId,
+                        table: tableName,
+                        date: currentDate + ' (Editado)',
+                        items: itemsSummary,
+                        total: totalMesa
+                    };
+                }
+                document.getElementById('ticket-status-title').innerText = "¡Ticket Modificado!";
+            } else {
+                const newOrder = {
+                    id: Date.now(),
+                    table: tableName,
+                    date: currentDate,
+                    items: itemsSummary,
+                    total: totalMesa
+                };
+                orderHistory.unshift(newOrder);
+                document.getElementById('ticket-status-title').innerText = "¡Ticket Guardado!";
+            }
+
+            renderHistory();
+
+            document.getElementById('ticket-customer').innerText = tableName;
+            document.getElementById('ticket-date').innerText = currentDate;
+            document.getElementById('ticket-total').innerText = `$${totalMesa}.00`;
+            
+            document.getElementById('ticket-items').innerHTML = `
+                <div class="space-y-2">
+                    ${itemsSummary.map((i) => `
+                        <div class="border-b border-slate-200/80 pb-1.5">
+                            <div class="flex justify-between font-bold text-slate-800">
+                                <span>${i.qty}x ${i.name}</span>
+                                <span>$${i.qty * i.price}</span>
+                            </div>
+                            ${i.note ? `<p class="text-[11px] text-slate-500 italic bg-slate-100 p-1 rounded mt-0.5">"${i.note}"</p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            exitEditingMode();
+            orderBatches = [];
+            document.getElementById('table-name-input').value = '';
+            renderOrderItems();
+            updateTotalNav();
+
+            closeAllOverlays();
+            setTimeout(() => {
+                document.getElementById('ticket-modal').classList.add('active');
+            }, 100);
+        }
+
+        function closeTicketModal() {
+            document.getElementById('ticket-modal').classList.remove('active');
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-items-list');
+
+            if (orderHistory.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-slate-400 flex flex-col items-center justify-center">
+                        <i class="fa-solid fa-clock-rotate-left text-3xl mb-2 opacity-30"></i>
+                        <p class="text-xs font-bold text-slate-600">Sin historial registrado</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = orderHistory.map(order => `
+                <div class="bg-white border ${editingOrderId === order.id ? 'border-black bg-slate-100' : 'border-slate-200'} rounded-[1.8rem] p-4 shadow-sm space-y-2.5">
+                    <div class="flex justify-between items-start border-b border-slate-100 pb-2">
+                        <div>
+                            <span class="font-black text-slate-900 text-sm block">${order.table}</span>
+                            <span class="text-[10px] text-slate-500 font-medium">${order.date}</span>
+                        </div>
+                        <span class="bg-red-100 text-red-800 border border-red-200 font-black text-xs px-3 py-1 rounded-full shrink-0 flex items-center justify-center leading-none">
+                            $${order.total}.00
+                        </span>
+                    </div>
+
+                    <div class="space-y-1 text-xs">
+                        ${order.items.map(i => `
+                            <div>
+                                <div class="flex justify-between text-slate-800 font-bold">
+                                    <span>${i.qty}x ${i.name}</span>
+                                    <span class="text-slate-500">$${i.price}</span>
+                                </div>
+                                ${i.note ? `<p class="text-[10px] text-slate-500 italic bg-slate-100 px-1.5 py-0.5 rounded mt-0.5">"${i.note}"</p>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="pt-1 flex justify-end">
+                        <button onclick="editOrderHistory(${order.id})" class="btn-smooth bg-red-100 hover:bg-red-200 text-red-800 border border-red-200 font-black px-5 py-2.5 rounded-full text-sm flex items-center gap-1.5 leading-none">
+                            <i class="fa-solid fa-pen-to-square text-red-700"></i>
+                            <span>Editar</span>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function editOrderHistory(orderId) {
+            const pastOrder = orderHistory.find(o => o.id === orderId);
+            if (!pastOrder) return;
+
+            editingOrderId = pastOrder.id;
+
+            orderBatches = pastOrder.items.map(itemSummary => {
+                const menuItem = menuData.find(m => m.name === itemSummary.name);
+                return {
+                    batchId: Date.now() + Math.random(),
+                    qty: itemSummary.qty,
+                    item: menuItem || { name: itemSummary.name, price: itemSummary.price },
+                    note: itemSummary.note || ''
+                };
+            });
+
+            document.getElementById('table-name-input').value = pastOrder.table;
+            document.getElementById('editing-customer-name').innerText = pastOrder.table;
+
+            enterEditingModeUI();
+            renderOrderItems();
+            updateTotalNav();
+            closeAllOverlays();
+            showToast(`Editando ticket de ${pastOrder.table}`);
+        }
+
+        function enterEditingModeUI() {
+            document.getElementById('editing-banner').classList.add('active');
+
+            const statusChip = document.getElementById('status-chip');
+            statusChip.className = "bg-black text-white text-xs font-black px-4 py-2.5 rounded-full flex items-center gap-2 border border-slate-700 theme-transition shadow-sm";
+            document.getElementById('status-chip-text').innerText = "MODO EDICIÓN";
+
+            const finishBtn = document.getElementById('finish-btn');
+            finishBtn.className = "btn-smooth flex-1 bg-black hover:bg-slate-800 text-white font-black py-3.5 rounded-full shadow-md text-sm theme-transition flex items-center justify-center gap-1.5 leading-none";
+            finishBtn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i><span>Guardar Cambios</span>`;
+        }
+
+        function exitEditingMode() {
+            editingOrderId = null;
+            document.getElementById('editing-banner').classList.remove('active');
+
+            const statusChip = document.getElementById('status-chip');
+            statusChip.className = "bg-red-100 text-red-800 text-xs font-black px-4 py-2.5 rounded-full flex items-center gap-2 border border-red-200 theme-transition shadow-sm";
+            document.getElementById('status-chip-text').innerText = "NUEVO TICKET";
+
+            const finishBtn = document.getElementById('finish-btn');
+            finishBtn.className = "btn-smooth flex-1 bg-red-100 hover:bg-red-200 text-red-800 border border-red-200 font-black py-3.5 rounded-full shadow-md text-sm theme-transition flex items-center justify-center gap-1.5 leading-none";
+            finishBtn.innerHTML = `<i class="fa-solid fa-circle-check text-red-700"></i><span>Finalizar Ticket</span>`;
+        }
+
+        function cancelEditing() {
+            exitEditingMode();
+            orderBatches = [];
+            document.getElementById('table-name-input').value = '';
+            renderOrderItems();
+            updateTotalNav();
+            showToast("Edición cancelada");
+        }
+
+        function clearHistory() {
+            orderHistory = [];
+            renderHistory();
+            showToast("Historial limpiado");
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        let toastTimeout;
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.add('active');
+            
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('active');
+            }, 1800);
+        }
+    </script>
+</body>
+</html>
